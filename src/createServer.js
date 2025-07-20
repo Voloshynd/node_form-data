@@ -47,49 +47,52 @@ function createServer() {
           amount: parseFloat(amount),
         };
 
-        const jsonString = JSON.stringify(newExpense, null, 2);
+        fs.readFile(filePath, 'utf-8', (err, data) => {
+          if (err) {
+            res.statusCode = 500;
+            res.end('Error reading file');
 
-        const writeStream = fs.createWriteStream(filePath);
-
-        writeStream.on('error', (err) => {
-          // eslint-disable-next-line no-console
-          console.error('Write error:', err.message);
-        });
-
-        writeStream.on('finish', () => {
-          // eslint-disable-next-line no-console
-          console.log('Expense data written successfully.');
-        });
-
-        writeStream.write(jsonString);
-        writeStream.end();
-
-        let buffer = '';
-
-        const readStream = fs.createReadStream(filePath, { encoding: 'utf-8' });
-
-        readStream.on('data', (chunk) => {
-          buffer += chunk;
-        });
-
-        readStream.on('end', () => {
-          try {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-
-            const data = JSON.parse(buffer);
-            const formattedJSON = JSON.stringify(data);
-
-            res.end(formattedJSON);
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error('JSON parse error:', err.message);
+            return null;
           }
-        });
 
-        readStream.on('error', (err) => {
-          // eslint-disable-next-line no-console
-          console.error('Read error:', err.message);
+          let expenseData;
+
+          try {
+            expenseData = JSON.parse(data);
+
+            if (!Array.isArray(expenseData.expenses)) {
+              expenseData.expenses = [];
+            }
+          } catch {
+            expenseData = { expenses: [] };
+          }
+
+          expenseData.expenses.push(newExpense);
+
+          fs.writeFile(
+            filePath,
+            JSON.stringify(expenseData, null, 2),
+            'utf-8',
+            (error) => {
+              if (error) {
+                res.statusCode = 500;
+                res.end('Failed to write file');
+
+                return null;
+              }
+
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+
+              res.end(
+                JSON.stringify(
+                  expenseData.expenses[expenseData.expenses.length - 1],
+                  null,
+                  2,
+                ),
+              );
+            },
+          );
         });
       });
     } else if (req.url === '/') {
@@ -118,7 +121,6 @@ function createServer() {
   });
 
   server.on('error', (err) => {
-    // eslint-disable-next-line no-console
     console.error('Server error:', err);
   });
 
