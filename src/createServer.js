@@ -121,6 +121,7 @@ function createServer() {
   });
 
   server.on('error', (err) => {
+    // eslint-disable-next-line no-console
     console.error('Server error:', err);
   });
 
